@@ -1,0 +1,673 @@
+# 1. Tạo toàn bộ cấu trúc thư mục
+mkdir -p src/config src/context src/hooks src/pages src/services src/types public/content/pronunciation public/audio
+
+# 2. Tạo các tệp cấu hình gốc
+cat << 'EOF' > package.json
+{
+  "name": "english-learning-hub",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^10.8.1",
+    "idb": "^8.0.0",
+    "lucide-react": "^0.354.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.6",
+    "vite-plugin-pwa": "^0.19.2"
+  }
+}
+EOF
+
+cat << 'EOF' > vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'English Learning Hub',
+        short_name: 'EngHub',
+        theme_color: '#1e3a8a',
+        icons: [
+          { src: '/vite.svg', sizes: '192x192', type: 'image/svg+xml' }
+        ]
+      }
+    })
+  ],
+});
+EOF
+
+cat << 'EOF' > tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'media',
+  theme: {
+    extend: {
+      colors: {
+        navy: {
+          700: '#1e3a8a',
+          800: '#1e3a5f',
+          900: '#0f172a',
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+EOF
+
+cat << 'EOF' > tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+EOF
+
+cat << 'EOF' > tsconfig.node.json
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+EOF
+
+cat << 'EOF' > firebase.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+EOF
+
+cat << 'EOF' > .env.example
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456:web:abcd
+EOF
+
+cat << 'EOF' > index.html
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Learning Hub</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+EOF
+
+# 3. Tạo các tệp TypeScript trong src/
+cat << 'EOF' > src/index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-navy-900 dark:text-gray-100 antialiased;
+  }
+}
+EOF
+
+cat << 'EOF' > src/main.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+EOF
+
+cat << 'EOF' > src/App.tsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
+import Home from './pages/Home';
+import PronunciationLesson from './pages/PronunciationLesson';
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/lesson/pronunciation/:id" element={<ProtectedRoute><PronunciationLesson /></ProtectedRoute>} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+EOF
+
+cat << 'EOF' > src/types/user.ts
+export interface UserProgress {
+  id: string;
+  userId: string;
+  itemId: string;
+  itemType: 'vocabulary' | 'pronunciation' | 'grammar' | 'vstep';
+  status: 'new' | 'learning' | 'reviewing' | 'mastered';
+  correctCount: number;
+  incorrectCount: number;
+  lastReviewedAt: number;
+  nextReviewAt: number;
+  synced: boolean;
+}
+EOF
+
+cat << 'EOF' > src/types/content.ts
+export interface PronunciationLesson {
+  id: string;
+  targetSounds: string[];
+  title_vi: string;
+  instructions: {
+    sound: string;
+    mouthGuide_vi: string;
+    audioGuideUrl?: string;
+  }[];
+  minimalPairs: {
+    pair: [string, string];
+    ipaPair: [string, string];
+    audioUrl?: string;
+  }[];
+  practiceWords: string[];
+  practiceSentences: string[];
+}
+EOF
+
+cat << 'EOF' > src/config/firebase.ts
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const googleProvider = new GoogleAuthProvider();
+EOF
+
+cat << 'EOF' > src/services/db.ts
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { db as firestoreDb } from '../config/firebase';
+import { doc, setDoc, collection } from 'firebase/firestore';
+import { UserProgress } from '../types/user';
+
+interface EnglishAppDB extends DBSchema {
+  progress: {
+    key: string;
+    value: UserProgress;
+    indexes: { 'by-synced': boolean };
+  };
+}
+
+let dbPromise: Promise<IDBPDatabase<EnglishAppDB>> | null = null;
+
+export const initDB = () => {
+  if (!dbPromise) {
+    dbPromise = openDB<EnglishAppDB>('english-app-db', 1, {
+      upgrade(db) {
+        const store = db.createObjectStore('progress', { keyPath: 'id' });
+        store.createIndex('by-synced', 'synced');
+      },
+    });
+  }
+  return dbPromise;
+};
+
+export const saveProgress = async (userId: string, itemId: string, itemType: UserProgress['itemType'], isCorrect: boolean) => {
+  const db = await initDB();
+  const id = `${userId}_${itemId}`;
+  
+  let record = await db.get('progress', id);
+  const now = Date.now();
+
+  if (!record) {
+    record = {
+      id, userId, itemId, itemType,
+      status: 'learning',
+      correctCount: isCorrect ? 1 : 0,
+      incorrectCount: isCorrect ? 0 : 1,
+      lastReviewedAt: now,
+      nextReviewAt: isCorrect ? now + 86400000 : now + 3600000, 
+      synced: false
+    };
+  } else {
+    record.correctCount += isCorrect ? 1 : 0;
+    record.incorrectCount += isCorrect ? 0 : 1;
+    record.lastReviewedAt = now;
+    record.nextReviewAt = isCorrect ? now + (86400000 * record.correctCount) : now + 3600000;
+    record.synced = false;
+  }
+
+  await db.put('progress', record);
+
+  if (navigator.onLine) {
+    try {
+      const docRef = doc(collection(firestoreDb, 'users', userId, 'progress'), id);
+      await setDoc(docRef, record);
+      record.synced = true;
+      await db.put('progress', record);
+    } catch (error) {
+      console.error('Lỗi đồng bộ:', error);
+    }
+  }
+  return record;
+};
+EOF
+
+cat << 'EOF' > src/context/AuthContext.tsx
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { auth, googleProvider } from '../config/firebase';
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+  }, []);
+
+  const login = async () => { await signInWithPopup(auth, googleProvider); };
+  const logout = async () => { await signOut(auth); };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
+EOF
+
+cat << 'EOF' > src/hooks/useSyncStatus.ts
+import { useState, useEffect } from 'react';
+export const useSyncStatus = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  return isOnline;
+};
+EOF
+
+# 4. Tạo giao diện
+cat << 'EOF' > src/pages/Login.tsx
+import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
+import { BookOpen } from 'lucide-react';
+
+export default function Login() {
+  const { user, login } = useAuth();
+  if (user) return <Navigate to="/" replace />;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-navy-900">
+      <div className="max-w-md w-full bg-white dark:bg-navy-800 rounded-2xl shadow-xl p-8 text-center border-t-4 border-navy-700">
+        <div className="flex justify-center mb-6">
+          <div className="p-3 bg-navy-100 dark:bg-navy-900 rounded-full text-navy-700 dark:text-blue-300">
+            <BookOpen size={40} />
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold mb-2">English Learning Hub</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">Học tập lộ trình cá nhân hóa từ A1 đến B2.</p>
+        <button onClick={login} className="w-full bg-navy-700 hover:bg-navy-800 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+          Đăng nhập bằng Google
+        </button>
+      </div>
+    </div>
+  );
+}
+EOF
+
+cat << 'EOF' > src/pages/Home.tsx
+import { useAuth } from '../context/AuthContext';
+import { useSyncStatus } from '../hooks/useSyncStatus';
+import { LogOut, Wifi, WifiOff, PlayCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export default function Home() {
+  const { user, logout } = useAuth();
+  const isOnline = useSyncStatus();
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen p-4 md:p-8 max-w-2xl mx-auto">
+      <header className="flex justify-between items-center mb-8 bg-white dark:bg-navy-800 p-4 rounded-xl shadow-sm">
+        <div>
+          <h1 className="font-bold text-lg">Chào, {user?.displayName}</h1>
+          <div className="flex items-center gap-1 text-xs mt-1">
+            {isOnline ? (
+              <><Wifi size={14} className="text-green-500"/> <span className="text-green-600">Trực tuyến (Đã đồng bộ)</span></>
+            ) : (
+              <><WifiOff size={14} className="text-orange-500"/> <span className="text-orange-600">Ngoại tuyến (Lưu cục bộ)</span></>
+            )}
+          </div>
+        </div>
+        <button onClick={logout} className="p-2 text-gray-500 hover:text-red-500">
+          <LogOut size={20} />
+        </button>
+      </header>
+
+      <main className="space-y-6">
+        <section className="bg-white dark:bg-navy-800 p-6 rounded-xl shadow-sm">
+          <h2 className="text-xl font-bold mb-2 text-navy-700 dark:text-blue-300">Lộ trình của bạn</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Bạn đang ở giai đoạn xây dựng nền tảng phát âm.</p>
+          
+          <div className="border border-gray-200 dark:border-navy-700 rounded-lg p-4 hover:border-navy-700 transition cursor-pointer flex items-center justify-between"
+               onClick={() => navigate('/lesson/pronunciation/vowel-01')}>
+            <div>
+              <h3 className="font-semibold">Bài 1: Phân biệt /i:/ và /ɪ/</h3>
+              <p className="text-sm text-gray-500 mt-1">Học khẩu hình, nghe phân biệt và luyện nhại âm.</p>
+            </div>
+            <PlayCircle className="text-navy-700 dark:text-blue-400" size={32} />
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+EOF
+
+cat << 'EOF' > src/pages/PronunciationLesson.tsx
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { saveProgress } from '../services/db';
+import { PronunciationLesson as LessonType } from '../types/content';
+import { Mic, Volume2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+
+export default function PronunciationLesson() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [lesson, setLesson] = useState<LessonType | null>(null);
+  const [step, setStep] = useState(0); 
+  const [isRecording, setIsRecording] = useState(false);
+  const [sttResult, setSttResult] = useState('');
+  const [feedback, setFeedback] = useState<'none' | 'success' | 'fail'>('none');
+
+  useEffect(() => {
+    fetch(`/content/pronunciation/${id}.json`)
+      .then(res => res.json())
+      .then(data => setLesson(data))
+      .catch(err => console.error("Không tải được bài học", err));
+  }, [id]);
+
+  if (!lesson) return <div className="p-8 text-center">Đang tải cấu trúc bài học...</div>;
+
+  const playAudio = () => {
+    alert("Phát âm thanh mẫu...");
+  };
+
+  const startRecording = () => {
+    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome.");
+      return;
+    }
+    
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    
+    setIsRecording(true);
+    setSttResult('');
+    setFeedback('none');
+
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      setSttResult(transcript);
+      setIsRecording(false);
+      
+      const targetWords = lesson.minimalPairs.map(mp => mp.pair).flat();
+      const isCorrect = targetWords.includes(transcript);
+      
+      setFeedback(isCorrect ? 'success' : 'fail');
+      
+      if (user) {
+         await saveProgress(user.uid, lesson.id, 'pronunciation', isCorrect);
+      }
+    };
+    
+    recognition.onerror = () => {
+      setIsRecording(false);
+      alert("Lỗi microphone.");
+    };
+    
+    recognition.start();
+  };
+
+  return (
+    <div className="min-h-screen p-4 md:p-8 max-w-2xl mx-auto bg-gray-50 dark:bg-navy-900">
+      <button onClick={() => navigate('/')} className="mb-4 text-sm text-navy-700 font-medium">← Quay lại Lộ trình</button>
+      
+      <div className="bg-white dark:bg-navy-800 rounded-2xl shadow-sm p-6 md:p-8 border-t-4 border-navy-700">
+        <h1 className="text-2xl font-bold mb-6 text-center">{lesson.title_vi}</h1>
+        
+        {step === 0 && (
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 1: Hiểu về Khẩu Hình (Dành cho người mới)</h2>
+            {lesson.instructions.map((inst, idx) => (
+              <div key={idx} className="p-4 bg-gray-50 dark:bg-navy-900 rounded-lg border border-gray-100 dark:border-navy-700">
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="text-3xl font-bold text-navy-800 dark:text-white">{inst.sound}</span>
+                  <button onClick={playAudio} className="p-2 bg-navy-100 text-navy-700 rounded-full"><Volume2 size={20}/></button>
+                </div>
+                <p className="text-gray-700 dark:text-gray-300">{inst.mouthGuide_vi}</p>
+              </div>
+            ))}
+            <button onClick={() => setStep(1)} className="w-full flex justify-center items-center gap-2 bg-navy-700 text-white py-3 rounded-xl mt-6">
+              Đã hiểu, chuyển sang Luyện nghe <ArrowRight size={20}/>
+            </button>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 2: Nghe phân biệt (Minimal Pairs)</h2>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Bấm để nghe sự khác biệt giữa hai âm.</p>
+            <div className="grid grid-cols-2 gap-4">
+              {lesson.minimalPairs.map((pair, idx) => (
+                <div key={idx} className="col-span-2 flex justify-around p-4 bg-gray-50 dark:bg-navy-900 rounded-lg items-center">
+                  <div className="text-center">
+                    <p className="text-xl font-bold">{pair.pair[0]}</p>
+                    <p className="text-sm text-gray-500">{pair.ipaPair[0]}</p>
+                  </div>
+                  <button onClick={playAudio} className="p-3 bg-navy-700 text-white rounded-full"><Volume2 size={24}/></button>
+                  <div className="text-center">
+                    <p className="text-xl font-bold">{pair.pair[1]}</p>
+                    <p className="text-sm text-gray-500">{pair.ipaPair[1]}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setStep(2)} className="w-full flex justify-center items-center gap-2 bg-navy-700 text-white py-3 rounded-xl mt-6">
+              Đã nghe rõ, sang phần Thực hành Nói <ArrowRight size={20}/>
+            </button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 3: Thực hành Đọc (Nhại âm)</h2>
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 rounded text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-3">
+              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+              <p><strong>Lưu ý quan trọng:</strong> Máy đang dùng công nghệ nhận diện từ ngữ (Speech-to-Text) để kiểm tra xem bạn có đọc ra đúng chữ không. Đây không phải công nghệ chấm điểm âm vị chi tiết.</p>
+            </div>
+
+            <div className="text-center py-8">
+              <p className="mb-4 text-gray-600 dark:text-gray-300">Hãy đọc to một trong các từ: <strong>sheep, ship, leave, live</strong></p>
+              
+              <button 
+                onClick={startRecording}
+                className={`p-6 rounded-full text-white transition-all shadow-lg ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-navy-700 hover:bg-navy-800'}`}
+              >
+                <Mic size={40} />
+              </button>
+              <p className="mt-4 text-sm text-gray-500">{isRecording ? 'Đang nghe...' : 'Bấm để nói'}</p>
+              
+              {sttResult && (
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
+                  <p className="text-sm text-gray-500">Máy nghe được:</p>
+                  <p className="text-2xl font-bold mt-1">"{sttResult}"</p>
+                  
+                  {feedback === 'success' && <p className="text-green-600 flex items-center justify-center gap-1 mt-2"><CheckCircle2 size={18}/> Tuyệt vời! Hệ thống đã ghi nhận tiến độ.</p>}
+                  {feedback === 'fail' && <p className="text-red-500 mt-2">Chưa chính xác, bạn hãy thử nhấn mạnh sự khác biệt khẩu hình nhé.</p>}
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => navigate('/')} className="w-full flex justify-center items-center gap-2 bg-gray-200 dark:bg-navy-700 text-gray-800 dark:text-white py-3 rounded-xl mt-6 hover:bg-gray-300 transition">
+              Hoàn thành bài học
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+EOF
+
+# 5. Tạo dữ liệu JSON bài mẫu
+cat << 'EOF' > public/content/pronunciation/vowel-01.json
+{
+  "id": "pronun-vowel-01",
+  "targetSounds": ["/i:/", "/ɪ/"],
+  "title_vi": "Phân biệt /i:/ dài và /ɪ/ ngắn (Bài kiểm thử mẫu)",
+  "instructions": [
+    {
+      "sound": "/i:/",
+      "mouthGuide_vi": "Cười nhẹ, môi kéo sang hai bên. Lưỡi nâng cao và đưa ra phía trước. Phát âm kéo dài, giống âm 'i' trong tiếng Việt nhưng căng hơn.",
+      "audioGuideUrl": "/audio/pronun/i-long.mp3"
+    },
+    {
+      "sound": "/ɪ/",
+      "mouthGuide_vi": "Môi và hàm thả lỏng hoàn toàn, hơi mở. Âm phát ra dứt khoát, nằm giữa 'i' và 'ê' trong tiếng Việt.",
+      "audioGuideUrl": "/audio/pronun/i-short.mp3"
+    }
+  ],
+  "minimalPairs": [
+    {
+      "pair": ["sheep", "ship"],
+      "ipaPair": ["/ʃiːp/", "/ʃɪp/"],
+      "audioUrl": "/audio/pronun/pairs/sheep-ship.mp3"
+    },
+    {
+      "pair": ["leave", "live"],
+      "ipaPair": ["/liːv/", "/lɪv/"],
+      "audioUrl": "/audio/pronun/pairs/leave-live.mp3"
+    }
+  ],
+  "practiceWords": ["vocab-a1-045", "vocab-a1-089"],
+  "practiceSentences": [
+    "Look at the big sheep on the ship."
+  ]
+}
+EOF
+
+# 6. Cài đặt các thư viện cần thiết tự động
+npm install
+
+echo "Hoàn thành! Bạn chỉ cần chạy 'npm run dev' để xem kết quả."
