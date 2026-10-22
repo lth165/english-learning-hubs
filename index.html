@@ -1,673 +1,696 @@
-# 1. Tạo toàn bộ cấu trúc thư mục
-mkdir -p src/config src/context src/hooks src/pages src/services src/types public/content/pronunciation public/audio
-
-# 2. Tạo các tệp cấu hình gốc
-cat << 'EOF' > package.json
-{
-  "name": "english-learning-hub",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "firebase": "^10.8.1",
-    "idb": "^8.0.0",
-    "lucide-react": "^0.354.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3",
-    "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.64",
-    "@types/react-dom": "^18.2.21",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.6",
-    "vite-plugin-pwa": "^0.19.2"
-  }
-}
-EOF
-
-cat << 'EOF' > vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
-
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      manifest: {
-        name: 'English Learning Hub',
-        short_name: 'EngHub',
-        theme_color: '#1e3a8a',
-        icons: [
-          { src: '/vite.svg', sizes: '192x192', type: 'image/svg+xml' }
-        ]
-      }
-    })
-  ],
-});
-EOF
-
-cat << 'EOF' > tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  darkMode: 'media',
-  theme: {
-    extend: {
-      colors: {
-        navy: {
-          700: '#1e3a8a',
-          800: '#1e3a5f',
-          900: '#0f172a',
-        }
-      }
-    },
-  },
-  plugins: [],
-}
-EOF
-
-cat << 'EOF' > tsconfig.json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
-}
-EOF
-
-cat << 'EOF' > tsconfig.node.json
-{
-  "compilerOptions": {
-    "composite": true,
-    "skipLibCheck": true,
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
-  },
-  "include": ["vite.config.ts"]
-}
-EOF
-
-cat << 'EOF' > firebase.rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-EOF
-
-cat << 'EOF' > .env.example
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456:web:abcd
-EOF
-
-cat << 'EOF' > index.html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Learning Hub</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
-EOF
+    <style>
+        /* CSS VARIABLES & THEME */
+        :root {
+            --primary: #1e3a8a; /* Xanh navy */
+            --primary-hover: #1e40af;
+            --primary-light: #3b82f6;
+            --bg-body: #f3f4f6;
+            --bg-surface: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --sidebar-width: 250px;
+        }
 
-# 3. Tạo các tệp TypeScript trong src/
-cat << 'EOF' > src/index.css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-body: #111827;
+                --bg-surface: #1f2937;
+                --text-main: #f9fafb;
+                --text-muted: #9ca3af;
+                --border: #374151;
+            }
+        }
 
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 dark:bg-navy-900 dark:text-gray-100 antialiased;
-  }
-}
-EOF
+        /* RESET & BASE */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        a { text-decoration: none; color: inherit; }
+        button { cursor: pointer; font-family: inherit; }
 
-cat << 'EOF' > src/main.tsx
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+        /* LAYOUT */
+        .sidebar { width: var(--sidebar-width); background-color: var(--primary); color: white; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.3s; z-index: 100; }
+        .sidebar-header { padding: 1.5rem 1rem; font-size: 1.25rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .menu-item { padding: 0.75rem 1rem; display: block; color: #d1d5db; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .menu-item:hover, .menu-item.active { background-color: rgba(255,255,255,0.1); color: white; }
+        .main-content { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header { background-color: var(--bg-surface); padding: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .mobile-menu-btn { display: none; background: none; border: none; font-size: 1.5rem; color: var(--text-main); }
+        .content-area { flex: 1; padding: 1.5rem; overflow-y: auto; }
+        .view-section { display: none; max-width: 1000px; margin: 0 auto; width: 100%; }
+        .view-section.active { display: block; }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
-EOF
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100%; transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-menu-btn { display: block; }
+        }
 
-cat << 'EOF' > src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './pages/Login';
-import Home from './pages/Home';
-import PronunciationLesson from './pages/PronunciationLesson';
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-};
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route path="/lesson/pronunciation/:id" element={<ProtectedRoute><PronunciationLesson /></ProtectedRoute>} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-EOF
-
-cat << 'EOF' > src/types/user.ts
-export interface UserProgress {
-  id: string;
-  userId: string;
-  itemId: string;
-  itemType: 'vocabulary' | 'pronunciation' | 'grammar' | 'vstep';
-  status: 'new' | 'learning' | 'reviewing' | 'mastered';
-  correctCount: number;
-  incorrectCount: number;
-  lastReviewedAt: number;
-  nextReviewAt: number;
-  synced: boolean;
-}
-EOF
-
-cat << 'EOF' > src/types/content.ts
-export interface PronunciationLesson {
-  id: string;
-  targetSounds: string[];
-  title_vi: string;
-  instructions: {
-    sound: string;
-    mouthGuide_vi: string;
-    audioGuideUrl?: string;
-  }[];
-  minimalPairs: {
-    pair: [string, string];
-    ipaPair: [string, string];
-    audioUrl?: string;
-  }[];
-  practiceWords: string[];
-  practiceSentences: string[];
-}
-EOF
-
-cat << 'EOF' > src/config/firebase.ts
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
-EOF
-
-cat << 'EOF' > src/services/db.ts
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { db as firestoreDb } from '../config/firebase';
-import { doc, setDoc, collection } from 'firebase/firestore';
-import { UserProgress } from '../types/user';
-
-interface EnglishAppDB extends DBSchema {
-  progress: {
-    key: string;
-    value: UserProgress;
-    indexes: { 'by-synced': boolean };
-  };
-}
-
-let dbPromise: Promise<IDBPDatabase<EnglishAppDB>> | null = null;
-
-export const initDB = () => {
-  if (!dbPromise) {
-    dbPromise = openDB<EnglishAppDB>('english-app-db', 1, {
-      upgrade(db) {
-        const store = db.createObjectStore('progress', { keyPath: 'id' });
-        store.createIndex('by-synced', 'synced');
-      },
-    });
-  }
-  return dbPromise;
-};
-
-export const saveProgress = async (userId: string, itemId: string, itemType: UserProgress['itemType'], isCorrect: boolean) => {
-  const db = await initDB();
-  const id = `${userId}_${itemId}`;
-  
-  let record = await db.get('progress', id);
-  const now = Date.now();
-
-  if (!record) {
-    record = {
-      id, userId, itemId, itemType,
-      status: 'learning',
-      correctCount: isCorrect ? 1 : 0,
-      incorrectCount: isCorrect ? 0 : 1,
-      lastReviewedAt: now,
-      nextReviewAt: isCorrect ? now + 86400000 : now + 3600000, 
-      synced: false
-    };
-  } else {
-    record.correctCount += isCorrect ? 1 : 0;
-    record.incorrectCount += isCorrect ? 0 : 1;
-    record.lastReviewedAt = now;
-    record.nextReviewAt = isCorrect ? now + (86400000 * record.correctCount) : now + 3600000;
-    record.synced = false;
-  }
-
-  await db.put('progress', record);
-
-  if (navigator.onLine) {
-    try {
-      const docRef = doc(collection(firestoreDb, 'users', userId, 'progress'), id);
-      await setDoc(docRef, record);
-      record.synced = true;
-      await db.put('progress', record);
-    } catch (error) {
-      console.error('Lỗi đồng bộ:', error);
-    }
-  }
-  return record;
-};
-EOF
-
-cat << 'EOF' > src/context/AuthContext.tsx
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-  }, []);
-
-  const login = async () => { await signInWithPopup(auth, googleProvider); };
-  const logout = async () => { await signOut(auth); };
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
-};
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
-EOF
-
-cat << 'EOF' > src/hooks/useSyncStatus.ts
-import { useState, useEffect } from 'react';
-export const useSyncStatus = () => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-  return isOnline;
-};
-EOF
-
-# 4. Tạo giao diện
-cat << 'EOF' > src/pages/Login.tsx
-import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
-
-export default function Login() {
-  const { user, login } = useAuth();
-  if (user) return <Navigate to="/" replace />;
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-navy-900">
-      <div className="max-w-md w-full bg-white dark:bg-navy-800 rounded-2xl shadow-xl p-8 text-center border-t-4 border-navy-700">
-        <div className="flex justify-center mb-6">
-          <div className="p-3 bg-navy-100 dark:bg-navy-900 rounded-full text-navy-700 dark:text-blue-300">
-            <BookOpen size={40} />
-          </div>
-        </div>
-        <h1 className="text-2xl font-bold mb-2">English Learning Hub</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">Học tập lộ trình cá nhân hóa từ A1 đến B2.</p>
-        <button onClick={login} className="w-full bg-navy-700 hover:bg-navy-800 text-white font-medium py-3 px-4 rounded-lg transition-colors">
-          Đăng nhập bằng Google
-        </button>
-      </div>
-    </div>
-  );
-}
-EOF
-
-cat << 'EOF' > src/pages/Home.tsx
-import { useAuth } from '../context/AuthContext';
-import { useSyncStatus } from '../hooks/useSyncStatus';
-import { LogOut, Wifi, WifiOff, PlayCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-export default function Home() {
-  const { user, logout } = useAuth();
-  const isOnline = useSyncStatus();
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen p-4 md:p-8 max-w-2xl mx-auto">
-      <header className="flex justify-between items-center mb-8 bg-white dark:bg-navy-800 p-4 rounded-xl shadow-sm">
-        <div>
-          <h1 className="font-bold text-lg">Chào, {user?.displayName}</h1>
-          <div className="flex items-center gap-1 text-xs mt-1">
-            {isOnline ? (
-              <><Wifi size={14} className="text-green-500"/> <span className="text-green-600">Trực tuyến (Đã đồng bộ)</span></>
-            ) : (
-              <><WifiOff size={14} className="text-orange-500"/> <span className="text-orange-600">Ngoại tuyến (Lưu cục bộ)</span></>
-            )}
-          </div>
-        </div>
-        <button onClick={logout} className="p-2 text-gray-500 hover:text-red-500">
-          <LogOut size={20} />
-        </button>
-      </header>
-
-      <main className="space-y-6">
-        <section className="bg-white dark:bg-navy-800 p-6 rounded-xl shadow-sm">
-          <h2 className="text-xl font-bold mb-2 text-navy-700 dark:text-blue-300">Lộ trình của bạn</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Bạn đang ở giai đoạn xây dựng nền tảng phát âm.</p>
-          
-          <div className="border border-gray-200 dark:border-navy-700 rounded-lg p-4 hover:border-navy-700 transition cursor-pointer flex items-center justify-between"
-               onClick={() => navigate('/lesson/pronunciation/vowel-01')}>
-            <div>
-              <h3 className="font-semibold">Bài 1: Phân biệt /i:/ và /ɪ/</h3>
-              <p className="text-sm text-gray-500 mt-1">Học khẩu hình, nghe phân biệt và luyện nhại âm.</p>
-            </div>
-            <PlayCircle className="text-navy-700 dark:text-blue-400" size={32} />
-          </div>
-        </section>
-      </main>
-    </div>
-  );
-}
-EOF
-
-cat << 'EOF' > src/pages/PronunciationLesson.tsx
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { saveProgress } from '../services/db';
-import { PronunciationLesson as LessonType } from '../types/content';
-import { Mic, Volume2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
-
-export default function PronunciationLesson() {
-  const { id } = useParams();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [lesson, setLesson] = useState<LessonType | null>(null);
-  const [step, setStep] = useState(0); 
-  const [isRecording, setIsRecording] = useState(false);
-  const [sttResult, setSttResult] = useState('');
-  const [feedback, setFeedback] = useState<'none' | 'success' | 'fail'>('none');
-
-  useEffect(() => {
-    fetch(`/content/pronunciation/${id}.json`)
-      .then(res => res.json())
-      .then(data => setLesson(data))
-      .catch(err => console.error("Không tải được bài học", err));
-  }, [id]);
-
-  if (!lesson) return <div className="p-8 text-center">Đang tải cấu trúc bài học...</div>;
-
-  const playAudio = () => {
-    alert("Phát âm thanh mẫu...");
-  };
-
-  const startRecording = () => {
-    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome.");
-      return;
-    }
-    
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    
-    setIsRecording(true);
-    setSttResult('');
-    setFeedback('none');
-
-    recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript.toLowerCase().trim();
-      setSttResult(transcript);
-      setIsRecording(false);
-      
-      const targetWords = lesson.minimalPairs.map(mp => mp.pair).flat();
-      const isCorrect = targetWords.includes(transcript);
-      
-      setFeedback(isCorrect ? 'success' : 'fail');
-      
-      if (user) {
-         await saveProgress(user.uid, lesson.id, 'pronunciation', isCorrect);
-      }
-    };
-    
-    recognition.onerror = () => {
-      setIsRecording(false);
-      alert("Lỗi microphone.");
-    };
-    
-    recognition.start();
-  };
-
-  return (
-    <div className="min-h-screen p-4 md:p-8 max-w-2xl mx-auto bg-gray-50 dark:bg-navy-900">
-      <button onClick={() => navigate('/')} className="mb-4 text-sm text-navy-700 font-medium">← Quay lại Lộ trình</button>
-      
-      <div className="bg-white dark:bg-navy-800 rounded-2xl shadow-sm p-6 md:p-8 border-t-4 border-navy-700">
-        <h1 className="text-2xl font-bold mb-6 text-center">{lesson.title_vi}</h1>
+        /* COMPONENTS */
+        .card { background-color: var(--bg-surface); border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; border: 1px solid var(--border); }
+        h1, h2, h3 { margin-bottom: 1rem; color: var(--primary-light); }
+        p { margin-bottom: 1rem; line-height: 1.6; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
         
-        {step === 0 && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 1: Hiểu về Khẩu Hình (Dành cho người mới)</h2>
-            {lesson.instructions.map((inst, idx) => (
-              <div key={idx} className="p-4 bg-gray-50 dark:bg-navy-900 rounded-lg border border-gray-100 dark:border-navy-700">
-                <div className="flex items-center gap-4 mb-2">
-                  <span className="text-3xl font-bold text-navy-800 dark:text-white">{inst.sound}</span>
-                  <button onClick={playAudio} className="p-2 bg-navy-100 text-navy-700 rounded-full"><Volume2 size={20}/></button>
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; font-weight: 500; display: inline-block; text-align: center; }
+        .btn-primary { background-color: var(--primary-light); color: white; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background-color: var(--bg-body); }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        
+        .badge { padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: bold; background-color: var(--border); color: var(--text-main); }
+        .badge.level-a1 { background-color: #dbeafe; color: #1e40af; }
+        .badge.level-a2 { background-color: #fef3c7; color: #b45309; }
+        .badge.level-b1 { background-color: #d1fae5; color: #065f46; }
+
+        /* FLASHCARD */
+        .flashcard { min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; border: 2px dashed var(--border); border-radius: 0.5rem; padding: 2rem; background-color: var(--bg-surface); transition: transform 0.2s; }
+        .flashcard:hover { transform: translateY(-2px); }
+        .flashcard-word { font-size: 2.5rem; color: var(--primary-light); font-weight: bold; }
+        .flashcard-ipa { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 1rem; }
+        .flashcard-back { display: none; border-top: 1px solid var(--border); width: 100%; padding-top: 1rem; margin-top: 1rem; }
+        .flashcard.show-back .flashcard-back { display: block; }
+        .controls { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+
+        /* LISTS & FORMS */
+        .item-list { list-style: none; }
+        .item-list li { padding: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;}
+        .item-list li:last-child { border-bottom: none; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+        .form-control { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.25rem; background-color: var(--bg-surface); color: var(--text-main); }
+        
+        .alert { padding: 1rem; border-radius: 0.25rem; margin-bottom: 1rem; }
+        .alert-warning { background-color: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--warning); }
+        .alert-info { background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary-light); }
+        
+        /* UTILS */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-2 { margin-top: 0.5rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>English Hub</span>
+            <button class="mobile-menu-btn" onclick="toggleSidebar()" style="color: white; border: none; background: none; display: none;" id="closeSidebarBtn">&times;</button>
+        </div>
+        <a href="#" class="menu-item active" onclick="nav('dashboard')">🏠 Dashboard</a>
+        <a href="#" class="menu-item" onclick="nav('pronunciation')">👄 Phát âm & IPA</a>
+        <a href="#" class="menu-item" onclick="nav('vocabulary')">📚 Từ vựng</a>
+        <a href="#" class="menu-item" onclick="nav('grammar')">✍️ Ngữ pháp</a>
+        <a href="#" class="menu-item" onclick="nav('skills')">🎧 Nghe - Nói - Đọc - Viết</a>
+        <a href="#" class="menu-item" onclick="nav('communication')">🗣️ Giao tiếp</a>
+        <a href="#" class="menu-item" onclick="nav('vstep')">📝 Luyện thi VSTEP B1</a>
+        <a href="#" class="menu-item" onclick="nav('settings')">⚙️ Cài đặt & Sao lưu</a>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="header">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div id="header-title" style="font-weight: bold;">Dashboard</div>
+        </header>
+
+        <div class="content-area">
+            
+            <!-- VIEW: DASHBOARD -->
+            <section id="dashboard" class="view-section active">
+                <h2>Tổng quan tiến độ</h2>
+                <div class="alert alert-info">
+                    <strong>Lưu ý kỹ thuật:</strong> Đây là phiên bản chạy hoàn toàn trên trình duyệt (Vanilla JS). Dữ liệu được lưu an toàn trong <code>localStorage</code> của máy bạn. Chưa hỗ trợ đồng bộ đám mây giữa các thiết bị.
                 </div>
-                <p className="text-gray-700 dark:text-gray-300">{inst.mouthGuide_vi}</p>
-              </div>
-            ))}
-            <button onClick={() => setStep(1)} className="w-full flex justify-center items-center gap-2 bg-navy-700 text-white py-3 rounded-xl mt-6">
-              Đã hiểu, chuyển sang Luyện nghe <ArrowRight size={20}/>
-            </button>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 2: Nghe phân biệt (Minimal Pairs)</h2>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">Bấm để nghe sự khác biệt giữa hai âm.</p>
-            <div className="grid grid-cols-2 gap-4">
-              {lesson.minimalPairs.map((pair, idx) => (
-                <div key={idx} className="col-span-2 flex justify-around p-4 bg-gray-50 dark:bg-navy-900 rounded-lg items-center">
-                  <div className="text-center">
-                    <p className="text-xl font-bold">{pair.pair[0]}</p>
-                    <p className="text-sm text-gray-500">{pair.ipaPair[0]}</p>
-                  </div>
-                  <button onClick={playAudio} className="p-3 bg-navy-700 text-white rounded-full"><Volume2 size={24}/></button>
-                  <div className="text-center">
-                    <p className="text-xl font-bold">{pair.pair[1]}</p>
-                    <p className="text-sm text-gray-500">{pair.ipaPair[1]}</p>
-                  </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Từ vựng đã học</h3>
+                        <p style="font-size: 2.5rem; color: var(--primary-light); font-weight: bold;" id="stat-vocab">0</p>
+                        <p class="text-muted">Tổng số thẻ từ vựng đã tương tác.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Phát âm đã luyện</h3>
+                        <p style="font-size: 2.5rem; color: var(--success); font-weight: bold;" id="stat-pronun">0</p>
+                        <p class="text-muted">Tổng số bài luyện âm hoàn thành.</p>
+                    </div>
                 </div>
-              ))}
-            </div>
-            <button onClick={() => setStep(2)} className="w-full flex justify-center items-center gap-2 bg-navy-700 text-white py-3 rounded-xl mt-6">
-              Đã nghe rõ, sang phần Thực hành Nói <ArrowRight size={20}/>
-            </button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-6">
-            <h2 className="text-lg font-semibold text-navy-700 dark:text-blue-300">Bước 3: Thực hành Đọc (Nhại âm)</h2>
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 rounded text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-3">
-              <AlertCircle size={20} className="shrink-0 mt-0.5" />
-              <p><strong>Lưu ý quan trọng:</strong> Máy đang dùng công nghệ nhận diện từ ngữ (Speech-to-Text) để kiểm tra xem bạn có đọc ra đúng chữ không. Đây không phải công nghệ chấm điểm âm vị chi tiết.</p>
-            </div>
-
-            <div className="text-center py-8">
-              <p className="mb-4 text-gray-600 dark:text-gray-300">Hãy đọc to một trong các từ: <strong>sheep, ship, leave, live</strong></p>
-              
-              <button 
-                onClick={startRecording}
-                className={`p-6 rounded-full text-white transition-all shadow-lg ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-navy-700 hover:bg-navy-800'}`}
-              >
-                <Mic size={40} />
-              </button>
-              <p className="mt-4 text-sm text-gray-500">{isRecording ? 'Đang nghe...' : 'Bấm để nói'}</p>
-              
-              {sttResult && (
-                <div className="mt-6 p-4 bg-gray-50 dark:bg-navy-900 rounded-lg">
-                  <p className="text-sm text-gray-500">Máy nghe được:</p>
-                  <p className="text-2xl font-bold mt-1">"{sttResult}"</p>
-                  
-                  {feedback === 'success' && <p className="text-green-600 flex items-center justify-center gap-1 mt-2"><CheckCircle2 size={18}/> Tuyệt vời! Hệ thống đã ghi nhận tiến độ.</p>}
-                  {feedback === 'fail' && <p className="text-red-500 mt-2">Chưa chính xác, bạn hãy thử nhấn mạnh sự khác biệt khẩu hình nhé.</p>}
+                <div class="card">
+                    <h3>Lịch học hôm nay</h3>
+                    <ul class="item-list" id="dashboard-schedule">
+                        <!-- Render via JS -->
+                    </ul>
                 </div>
-              )}
-            </div>
+            </section>
 
-            <button onClick={() => navigate('/')} className="w-full flex justify-center items-center gap-2 bg-gray-200 dark:bg-navy-700 text-gray-800 dark:text-white py-3 rounded-xl mt-6 hover:bg-gray-300 transition">
-              Hoàn thành bài học
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-EOF
+            <!-- VIEW: PRONUNCIATION -->
+            <section id="pronunciation" class="view-section">
+                <h2>Phát âm & IPA (Anh-Mỹ)</h2>
+                <div class="alert alert-warning">
+                    <strong>Giới hạn:</strong> Trình duyệt sẽ dùng Web Speech API để tạo âm thanh (TTS) và nhận diện giọng nói (ASR). API nhận diện chỉ so khớp từ thô, không chấm điểm chính xác từng âm vị (phoneme) như AI chuyên sâu. Không bịa điểm ảo.
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>Danh sách bài học</h3>
+                        <ul class="item-list" id="pronun-list">
+                            <!-- Render via JS -->
+                        </ul>
+                    </div>
+                    <div class="card" id="pronun-detail" style="display: none;">
+                        <h3 id="p-title">Tên bài</h3>
+                        <p class="text-muted" id="p-desc">Mô tả</p>
+                        <div id="p-pairs-container" style="margin-top: 1.5rem;">
+                            <!-- Pairs render here -->
+                        </div>
+                        <div id="asr-feedback" style="margin-top: 1rem; font-weight: bold;"></div>
+                    </div>
+                </div>
+            </section>
 
-# 5. Tạo dữ liệu JSON bài mẫu
-cat << 'EOF' > public/content/pronunciation/vowel-01.json
-{
-  "id": "pronun-vowel-01",
-  "targetSounds": ["/i:/", "/ɪ/"],
-  "title_vi": "Phân biệt /i:/ dài và /ɪ/ ngắn (Bài kiểm thử mẫu)",
-  "instructions": [
-    {
-      "sound": "/i:/",
-      "mouthGuide_vi": "Cười nhẹ, môi kéo sang hai bên. Lưỡi nâng cao và đưa ra phía trước. Phát âm kéo dài, giống âm 'i' trong tiếng Việt nhưng căng hơn.",
-      "audioGuideUrl": "/audio/pronun/i-long.mp3"
-    },
-    {
-      "sound": "/ɪ/",
-      "mouthGuide_vi": "Môi và hàm thả lỏng hoàn toàn, hơi mở. Âm phát ra dứt khoát, nằm giữa 'i' và 'ê' trong tiếng Việt.",
-      "audioGuideUrl": "/audio/pronun/i-short.mp3"
-    }
-  ],
-  "minimalPairs": [
-    {
-      "pair": ["sheep", "ship"],
-      "ipaPair": ["/ʃiːp/", "/ʃɪp/"],
-      "audioUrl": "/audio/pronun/pairs/sheep-ship.mp3"
-    },
-    {
-      "pair": ["leave", "live"],
-      "ipaPair": ["/liːv/", "/lɪv/"],
-      "audioUrl": "/audio/pronun/pairs/leave-live.mp3"
-    }
-  ],
-  "practiceWords": ["vocab-a1-045", "vocab-a1-089"],
-  "practiceSentences": [
-    "Look at the big sheep on the ship."
-  ]
-}
-EOF
+            <!-- VIEW: VOCABULARY -->
+            <section id="vocabulary" class="view-section">
+                <h2>Từ vựng A1 - B2</h2>
+                <div class="card" id="vocab-flashcard-container">
+                    <div class="text-center mb-2"><span class="badge level-a1" id="v-level">A1</span> <span class="badge" id="v-topic">Topic</span></div>
+                    <div class="flashcard" id="flashcard" onclick="toggleFlashcard()">
+                        <div class="flashcard-word" id="v-word">Word</div>
+                        <div class="flashcard-ipa" id="v-ipa">/ipa/</div>
+                        <div class="text-muted" style="font-size: 0.9rem;">(Chạm để xem nghĩa)</div>
+                        <div class="flashcard-back">
+                            <div style="font-size: 1.5rem; color: var(--primary); font-weight: bold; margin-bottom: 0.5rem;" id="v-meaning">Nghĩa</div>
+                            <div style="font-style: italic;" id="v-example">Ví dụ</div>
+                        </div>
+                    </div>
+                    <div class="controls" id="vocab-controls" style="display: none;">
+                        <button class="btn btn-outline" onclick="playTTS(document.getElementById('v-word').innerText)">🎧 Nghe</button>
+                        <button class="btn btn-danger" onclick="markVocab(false)">Chưa thuộc</button>
+                        <button class="btn btn-success" onclick="markVocab(true)">Đã nhớ</button>
+                    </div>
+                </div>
+                <div class="card text-center" id="vocab-empty" style="display: none;">
+                    <h3>Bạn đã học hết từ vựng mẫu!</h3>
+                    <p>Dữ liệu được thiết kế mở rộng. Bạn có thể thêm hàng ngàn từ vào mảng JSON trong mã nguồn.</p>
+                    <button class="btn btn-primary" onclick="resetVocab()">Học lại từ đầu</button>
+                </div>
+            </section>
 
-# 6. Cài đặt các thư viện cần thiết tự động
-npm install
+            <!-- VIEW: GRAMMAR -->
+            <section id="grammar" class="view-section">
+                <h2>Ngữ pháp</h2>
+                <div class="card">
+                    <p>Nội dung mẫu chứng minh khả năng lưu trữ và chấm điểm bài tập.</p>
+                    <div id="grammar-content">
+                        <!-- Render via JS -->
+                    </div>
+                </div>
+            </section>
 
-echo "Hoàn thành! Bạn chỉ cần chạy 'npm run dev' để xem kết quả."
+            <!-- VIEW: SKILLS -->
+            <section id="skills" class="view-section">
+                <h2>Nghe - Nói - Đọc - Viết</h2>
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>🎧 Luyện Nghe</h3>
+                        <p class="text-muted">Nghe đoạn văn bằng TTS (vì không có audio thật) và trả lời.</p>
+                        <button class="btn btn-outline" onclick="playTTS('Hello, my name is John. I work as an accountant in a bank. I love playing tennis on weekends.')">Nghe đoạn văn</button>
+                        <div class="mt-2">
+                            <p><strong>Câu hỏi:</strong> John làm nghề gì?</p>
+                            <button class="btn btn-outline mt-2" onclick="alert('Đúng! Anh ấy là accountant.')">Kế toán</button>
+                            <button class="btn btn-outline mt-2" onclick="alert('Sai rồi.')">Bác sĩ</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>📖 Luyện Đọc</h3>
+                        <p class="text-muted">Đọc đoạn văn và trả lời câu hỏi đọc hiểu.</p>
+                        <p style="background: var(--bg-body); padding: 1rem; border-radius: 0.5rem; font-style: italic;">"The Earth is the third planet from the Sun and the only astronomical object known to harbor life."</p>
+                        <p class="mt-2">Hành tinh thứ mấy từ Mặt Trời?</p>
+                        <button class="btn btn-outline" onclick="alert('Chính xác!')">Thứ ba</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: COMMUNICATION -->
+            <section id="communication" class="view-section">
+                <h2>Giao tiếp theo tình huống</h2>
+                <div class="card">
+                    <h3>Tình huống: Gọi món tại nhà hàng</h3>
+                    <ul class="item-list">
+                        <li>
+                            <div>
+                                <strong>Waiter:</strong> Are you ready to order?
+                                <br><span class="text-muted">Bạn đã sẵn sàng gọi món chưa?</span>
+                            </div>
+                            <button class="btn btn-outline" onclick="playTTS('Are you ready to order?')">Nghe</button>
+                        </li>
+                        <li>
+                            <div>
+                                <strong>You:</strong> Yes, I'd like a chicken salad, please.
+                                <br><span class="text-muted">Vâng, cho tôi một salad gà.</span>
+                            </div>
+                            <div>
+                                <button class="btn btn-outline" onclick="playTTS('Yes, I would like a chicken salad, please.')">Nghe mẫu</button>
+                                <button class="btn btn-primary" onclick="recognizeSpeech('Yes, I would like a chicken salad, please.')">Luyện nói</button>
+                            </div>
+                        </li>
+                    </ul>
+                    <div id="comm-feedback" class="mt-2 text-center" style="color: var(--primary-light); font-weight: bold;"></div>
+                </div>
+            </section>
+
+            <!-- VIEW: VSTEP -->
+            <section id="vstep" class="view-section">
+                <h2>Luyện thi VSTEP B1</h2>
+                <div class="alert alert-info">
+                    <strong>Hệ thống giả lập:</strong> Dưới đây là bài mẫu Reading Part 1 (Trắc nghiệm). Kết quả sẽ được ghi nhận vào lịch sử học.
+                </div>
+                <div class="card" id="vstep-quiz-container">
+                    <!-- Render via JS -->
+                </div>
+            </section>
+
+            <!-- VIEW: SETTINGS -->
+            <section id="settings" class="view-section">
+                <h2>Cài đặt & Sao lưu dữ liệu</h2>
+                <div class="card">
+                    <h3>Lịch học cá nhân</h3>
+                    <p class="text-muted">Thiết lập khung giờ để hệ thống hiển thị nhắc nhở trên Dashboard.</p>
+                    <div class="grid-2" id="schedule-settings">
+                        <!-- Render via JS -->
+                    </div>
+                    <button class="btn btn-success mt-2" onclick="saveSchedule()">Lưu lịch học</button>
+                </div>
+                
+                <div class="card">
+                    <h3>Quản lý dữ liệu (LocalStorage)</h3>
+                    <p class="text-muted">Xuất dữ liệu tiến độ của bạn ra file JSON để sao lưu. (Không có API Cloud tĩnh do chạy trên GitHub Pages).</p>
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="exportData()">⬇️ Xuất bản sao lưu</button>
+                        <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
+                        <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">⬆️ Nhập bản sao lưu</button>
+                    </div>
+                    <button class="btn btn-danger mt-2" style="margin-top: 2rem;" onclick="clearData()">⚠️ Xóa toàn bộ tiến độ</button>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- SCRIPT TỔNG HỢP: DATA + LOGIC -->
+    <script>
+        /* ===============================
+           1. CƠ SỞ DỮ LIỆU MẪU (JSON Objects)
+           Hệ thống thiết kế để mở rộng. Bạn có thể thêm phần tử vào các mảng này.
+        =============================== */
+        const DATA = {
+            pronunciation: [
+                {
+                    id: "pron_1", title: "Cặp âm Dài & Ngắn: /iː/ vs /ɪ/", desc: "Phân biệt nguyên âm i dài (căng miệng) và i ngắn (thả lỏng).",
+                    pairs: [
+                        { word: "sheep", ipa: "/ʃiːp/", vi: "Con cừu", instruction: "Kéo dài âm, khóe miệng kéo sang hai bên như đang cười." },
+                        { word: "ship", ipa: "/ʃɪp/", vi: "Con tàu", instruction: "Âm ngắn, dứt khoát, miệng hơi mở, lưỡi thả lỏng." }
+                    ]
+                },
+                {
+                    id: "pron_2", title: "Cặp âm: /æ/ vs /e/", desc: "Phân biệt âm a bẹt và e.",
+                    pairs: [
+                        { word: "bad", ipa: "/bæd/", vi: "Tồi tệ", instruction: "Mở to miệng theo cả chiều dọc và ngang, cằm hạ thấp." },
+                        { word: "bed", ipa: "/bed/", vi: "Cái giường", instruction: "Miệng mở vừa phải, giống chữ e trong tiếng Việt." }
+                    ]
+                }
+            ],
+            vocabulary: [
+                { id: "v1", word: "Opportunity", ipa: "/ˌɑː.pɚˈtuː.nə.t̬i/", meaning: "Cơ hội", type: "noun", example: "This is a great opportunity.", level: "A2", topic: "Work" },
+                { id: "v2", word: "Environment", ipa: "/ɪnˈvaɪ.rən.mənt/", meaning: "Môi trường", type: "noun", example: "We must protect the environment.", level: "B1", topic: "Nature" },
+                { id: "v3", word: "Challenge", ipa: "/ˈtʃæl.ɪndʒ/", meaning: "Thử thách", type: "noun", example: "I like a good challenge.", level: "A2", topic: "Life" },
+                { id: "v4", word: "Require", ipa: "/rɪˈkwaɪr/", meaning: "Yêu cầu", type: "verb", example: "This job requires English skills.", level: "B1", topic: "Work" }
+            ],
+            grammar: [
+                {
+                    id: "g1", title: "Hiện tại đơn (Present Simple)",
+                    concept: "Dùng để diễn tả một thói quen, một sự thật hiển nhiên.",
+                    structure: "S + V(s/es) + O",
+                    quiz: { q: "She (go) _____ to school everyday.", options: ["go", "goes", "going"], answer: "goes" }
+                }
+            ],
+            vstep: [
+                { id: "vs1", question: "Notice: NO PARKING IN FRONT OF GATES. What does this mean?", options: ["You can park here.", "Do not park here.", "Gates are closed."], answer: 1 }
+            ]
+        };
+
+        /* ===============================
+           2. QUẢN LÝ TIẾN ĐỘ (State Management)
+        =============================== */
+        let progress = JSON.parse(localStorage.getItem('eng_hub_progress')) || {
+            learnedVocab: [], // Mảng ID từ vựng đã học
+            practicedPronun: [], // Mảng ID bài phát âm đã luyện
+            schedule: [
+                { time: "05:00", active: true },
+                { time: "08:30", active: true },
+                { time: "20:00", active: true }
+            ]
+        };
+
+        function saveProgress() {
+            localStorage.setItem('eng_hub_progress', JSON.stringify(progress));
+            updateDashboardStats();
+        }
+
+        /* ===============================
+           3. UI ROUTING & NAVIGATION
+        =============================== */
+        const views = ['dashboard', 'pronunciation', 'vocabulary', 'grammar', 'skills', 'communication', 'vstep', 'settings'];
+        const viewNames = {
+            'dashboard': 'Dashboard', 'pronunciation': 'Phát âm & IPA', 'vocabulary': 'Từ vựng', 'grammar': 'Ngữ pháp',
+            'skills': 'Nghe - Nói - Đọc - Viết', 'communication': 'Giao tiếp', 'vstep': 'Luyện thi VSTEP B1', 'settings': 'Cài đặt'
+        };
+
+        function nav(viewId) {
+            views.forEach(v => document.getElementById(v).classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            // Cập nhật Sidebar UI
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            document.getElementById('header-title').innerText = viewNames[viewId];
+            
+            if(window.innerWidth <= 768) toggleSidebar(); // Đóng menu mobile
+            
+            // Re-render data khi vào view
+            if(viewId === 'dashboard') renderDashboard();
+            if(viewId === 'pronunciation') renderPronunciationList();
+            if(viewId === 'vocabulary') loadNextVocab();
+            if(viewId === 'grammar') renderGrammar();
+            if(viewId === 'vstep') renderVstep();
+            if(viewId === 'settings') renderSettings();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            const mobileBtn = document.getElementById('closeSidebarBtn');
+            if (window.innerWidth <= 768) {
+                mobileBtn.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+            }
+        }
+
+        /* ===============================
+           4. TÍNH NĂNG: DASHBOARD
+        =============================== */
+        function updateDashboardStats() {
+            document.getElementById('stat-vocab').innerText = progress.learnedVocab.length;
+            document.getElementById('stat-pronun').innerText = progress.practicedPronun.length;
+        }
+
+        function renderDashboard() {
+            updateDashboardStats();
+            const schedContainer = document.getElementById('dashboard-schedule');
+            schedContainer.innerHTML = '';
+            progress.schedule.forEach(s => {
+                if(s.active) {
+                    schedContainer.innerHTML += `<li><strong>${s.time}</strong> <span>⏰ Giờ học (30 phút)</span></li>`;
+                }
+            });
+            if(schedContainer.innerHTML === '') schedContainer.innerHTML = '<li>Không có lịch học nào được bật.</li>';
+        }
+
+        /* ===============================
+           5. TÍNH NĂNG: PHÁT ÂM (Web Speech API)
+        =============================== */
+        function renderPronunciationList() {
+            const list = document.getElementById('pronun-list');
+            list.innerHTML = '';
+            DATA.pronunciation.forEach(item => {
+                const isDone = progress.practicedPronun.includes(item.id);
+                list.innerHTML += `
+                    <li>
+                        <div>
+                            <strong>${item.title}</strong>
+                            ${isDone ? '<span class="badge" style="background:var(--success);color:white;margin-left:5px">Đã luyện</span>' : ''}
+                        </div>
+                        <button class="btn btn-outline" onclick="openPronunciation('${item.id}')">Học</button>
+                    </li>
+                `;
+            });
+        }
+
+        function openPronunciation(id) {
+            const data = DATA.pronunciation.find(p => p.id === id);
+            document.getElementById('p-title').innerText = data.title;
+            document.getElementById('p-desc').innerText = data.desc;
+            const pairsContainer = document.getElementById('p-pairs-container');
+            pairsContainer.innerHTML = '';
+            
+            data.pairs.forEach(pair => {
+                pairsContainer.innerHTML += `
+                    <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:1rem;">
+                        <div>
+                            <h4 style="font-size: 1.5rem;">${pair.word} <span class="text-muted">${pair.ipa}</span></h4>
+                            <p style="font-size: 0.9rem; margin-bottom: 0;">${pair.vi}</p>
+                            <p style="font-size: 0.85rem; font-style: italic; margin-top: 0.25rem;">Khẩu hình: ${pair.instruction}</p>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+                            <button class="btn btn-outline" onclick="playTTS('${pair.word}')">🎧 Nghe</button>
+                            <button class="btn btn-primary" onclick="recognizeSpeech('${pair.word}', '${id}')">🎙️ Nói</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('pronun-detail').style.display = 'block';
+            document.getElementById('asr-feedback').innerText = '';
+        }
+
+        // Text to Speech
+        function playTTS(text) {
+            if (!window.speechSynthesis) return alert('Trình duyệt không hỗ trợ đọc (TTS).');
+            const ut = new SpeechSynthesisUtterance(text);
+            ut.lang = 'en-US';
+            window.speechSynthesis.speak(ut);
+        }
+
+        // Automatic Speech Recognition
+        function recognizeSpeech(expectedWord, lessonId = null) {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const feedbackEl = document.getElementById('asr-feedback') || document.getElementById('comm-feedback');
+            if (!SpeechRec) {
+                feedbackEl.innerText = 'Trình duyệt không hỗ trợ nhận diện giọng nói. Vui lòng dùng Chrome/Edge trên PC hoặc Android.';
+                feedbackEl.style.color = 'var(--danger)';
+                return;
+            }
+
+            const rec = new SpeechRec();
+            rec.lang = 'en-US';
+            rec.start();
+            feedbackEl.innerText = 'Đang nghe... Hãy nói đi!';
+            feedbackEl.style.color = 'var(--warning)';
+
+            rec.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase().trim();
+                // Check if expected word is IN the transcript (fuzzy match for simplicity)
+                const isMatch = transcript.replace(/[.,!?]/g, '').includes(expectedWord.toLowerCase().replace(/[.,!?]/g, ''));
+                
+                if (isMatch) {
+                    feedbackEl.innerText = `Chính xác! Bạn đã nói: "${transcript}"`;
+                    feedbackEl.style.color = 'var(--success)';
+                    if(lessonId && !progress.practicedPronun.includes(lessonId)) {
+                        progress.practicedPronun.push(lessonId);
+                        saveProgress();
+                        renderPronunciationList(); // Update UI badge
+                    }
+                } else {
+                    feedbackEl.innerText = `Chưa chuẩn. Trình duyệt nghe được: "${transcript}". Hãy thử lại!`;
+                    feedbackEl.style.color = 'var(--danger)';
+                }
+            };
+
+            rec.onerror = (e) => {
+                feedbackEl.innerText = 'Lỗi micro hoặc không nghe rõ. Vui lòng thử lại. Lỗi: ' + e.error;
+                feedbackEl.style.color = 'var(--danger)';
+            }
+        }
+
+        /* ===============================
+           6. TÍNH NĂNG: TỪ VỰNG (Flashcards)
+        =============================== */
+        let currentVocabIndex = 0;
+        let unlearnedVocab = [];
+
+        function loadNextVocab() {
+            // Lọc ra các từ chưa học
+            unlearnedVocab = DATA.vocabulary.filter(v => !progress.learnedVocab.includes(v.id));
+            if(unlearnedVocab.length === 0) {
+                document.getElementById('vocab-flashcard-container').style.display = 'none';
+                document.getElementById('vocab-empty').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('vocab-flashcard-container').style.display = 'block';
+            document.getElementById('vocab-empty').style.display = 'none';
+            document.getElementById('flashcard').classList.remove('show-back');
+            document.getElementById('vocab-controls').style.display = 'none';
+
+            const v = unlearnedVocab[0];
+            document.getElementById('v-level').innerText = v.level;
+            document.getElementById('v-topic').innerText = v.topic;
+            document.getElementById('v-word').innerText = v.word;
+            document.getElementById('v-ipa').innerText = v.ipa;
+            document.getElementById('v-meaning').innerText = v.meaning + ` (${v.type})`;
+            document.getElementById('v-example').innerText = v.example;
+        }
+
+        function toggleFlashcard() {
+            document.getElementById('flashcard').classList.add('show-back');
+            document.getElementById('vocab-controls').style.display = 'flex';
+        }
+
+        function markVocab(remembered) {
+            if(remembered) {
+                const v = unlearnedVocab[0];
+                if(!progress.learnedVocab.includes(v.id)) {
+                    progress.learnedVocab.push(v.id);
+                    saveProgress();
+                }
+            } else {
+                // Nếu chưa thuộc, nhét từ này xuống cuối mảng (ảo) để học lại sau
+                alert("Hãy nhẩm lại từ này nhé. Hệ thống sẽ hiển thị lại sau.");
+            }
+            loadNextVocab(); // Chuyển từ tiếp theo
+        }
+
+        function resetVocab() {
+            if(confirm("Bạn có chắc muốn xóa lịch sử học từ vựng để học lại từ đầu?")) {
+                progress.learnedVocab = [];
+                saveProgress();
+                loadNextVocab();
+            }
+        }
+
+        /* ===============================
+           7. TÍNH NĂNG: NGỮ PHÁP & VSTEP
+        =============================== */
+        function renderGrammar() {
+            const container = document.getElementById('grammar-content');
+            container.innerHTML = '';
+            DATA.grammar.forEach((g, index) => {
+                container.innerHTML += `
+                    <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                        <h3 style="margin-bottom: 0.5rem;">Bài ${index + 1}: ${g.title}</h3>
+                        <p><strong>Khái niệm:</strong> ${g.concept}</p>
+                        <p><strong>Cấu trúc:</strong> <code>${g.structure}</code></p>
+                        <hr style="border-top:1px solid var(--border); margin: 1rem 0; border-bottom: none;">
+                        <p><strong>Thực hành:</strong> ${g.quiz.q}</p>
+                        <div style="display:flex; gap:0.5rem; flex-wrap: wrap; margin-top:0.5rem;">
+                            ${g.quiz.options.map(opt => `<button class="btn btn-outline" onclick="checkGrammarAns('${opt}', '${g.quiz.answer}')">${opt}</button>`).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function checkGrammarAns(selected, correct) {
+            if(selected === correct) alert("Chính xác! Đáp án đúng là: " + correct);
+            else alert("Sai rồi. Hãy xem lại cấu trúc nhé.");
+        }
+
+        function renderVstep() {
+            const container = document.getElementById('vstep-quiz-container');
+            container.innerHTML = '';
+            DATA.vstep.forEach((q, index) => {
+                container.innerHTML += `
+                    <p><strong>Question ${index + 1}:</strong> ${q.question}</p>
+                    <div style="display:flex; flex-direction: column; gap:0.5rem; margin-top:1rem;">
+                        ${q.options.map((opt, i) => `<button class="btn btn-outline" style="text-align: left;" onclick="checkVstep(${i},${q.answer})">${['A','B','C'][i]}.${opt}</button>`).join('')}
+                    </div>
+                `;
+            });
+        }
+
+        function checkVstep(selected, correct) {
+            if(selected === correct) alert("Chính xác!");
+            else alert("Sai rồi! Đáp án đúng là " + ['A','B','C'][correct]);
+        }
+
+        /* ===============================
+           8. TÍNH NĂNG: CÀI ĐẶT & DATA
+        =============================== */
+        function renderSettings() {
+            const container = document.getElementById('schedule-settings');
+            container.innerHTML = '';
+            progress.schedule.forEach((s, idx) => {
+                container.innerHTML += `
+                    <div class="form-group">
+                        <label>Ca ${idx + 1}</label>
+                        <div style="display:flex; gap: 0.5rem; align-items:center;">
+                            <input type="time" class="form-control" id="sched-time-${idx}" value="${s.time}">
+                            <input type="checkbox" id="sched-active-${idx}" ${s.active ? 'checked' : ''}> Bật
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function saveSchedule() {
+            progress.schedule = progress.schedule.map((s, idx) => ({
+                time: document.getElementById(`sched-time-${idx}`).value,
+                active: document.getElementById(`sched-active-${idx}`).checked
+            }));
+            saveProgress();
+            alert("Đã lưu lịch học thành công!");
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(progress));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "english_hub_backup.json");
+            dlAnchorElem.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if(imported.learnedVocab) {
+                        progress = imported;
+                        saveProgress();
+                        alert("Phục hồi dữ liệu thành công! Vui lòng tải lại trang.");
+                        location.reload();
+                    } else {
+                        alert("File JSON không đúng định dạng của English Hub.");
+                    }
+                } catch (err) {
+                    alert("Lỗi đọc file JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearData() {
+            if(confirm("Hành động này sẽ XÓA TOÀN BỘ tiến độ học tập trên trình duyệt này. Bạn có chắc không?")) {
+                localStorage.removeItem('eng_hub_progress');
+                location.reload();
+            }
+        }
+
+        // Init App
+        window.onload = () => {
+            renderDashboard();
+        };
+
+    </script>
+</body>
+</html>
